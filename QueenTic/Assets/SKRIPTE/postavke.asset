@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c08e7f66d1cedfe46878e1ac32753f56, type: 3}
+  m_Name: postavke
+  m_EditorClassIdentifier: 
+  level: 6
+  score: 0
+  showHints: 1
+  boje:
+  - {r: 0.74509805, g: 0.74509805, b: 0.74509805, a: 1}
+  - {r: 0.3764706, g: 0.8980392, b: 0.7529412, a: 1}
+  - {r: 0.19215687, g: 0.7137255, b: 0.79607844, a: 1}
+  - {r: 0.8901961, g: 0.44313726, b: 0.49019608, a: 1}
+  - {r: 0.98039216, g: 0.85882354, b: 0.32156864, a: 1}

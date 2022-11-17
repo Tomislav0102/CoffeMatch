@@ -1,0 +1,773 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using FirstCollection;
+using TMPro;
+using DG.Tweening;
+using UnityEngine.SceneManagement;
+using System;
+
+public class GameManager : MonoBehaviour
+{
+    public static GameManager gm;
+    public SO_postavke postavke;
+    public LevelManager levelManager;
+    [SerializeField] Transform kanvas;
+    [SerializeField] Transform parTile, parToken, parPositions, parTileReplace, parTokenReplace, parCoord, parHintElements, parVrijednosti;
+    [SerializeField] GameObject levelDoneGO;
+    [SerializeField] Button[] btnLevelDone;
+    [SerializeField] TextMeshProUGUI infoDisplay, levelDisplay;
+    [SerializeField] Toggle toggleHint;
+    int _maxLevels;
+    bool _levelDone;
+
+    Tile[,] _tiles = new Tile[3, 3];
+    Transform[,] _tileTransform = new Transform[3, 3];
+    Token[,] _tokens = new Token[3, 3];
+    Transform[,] _tokenTransform = new Transform[3, 3];
+    Vector2[,] _rectPosition = new Vector2[5, 5]; //position is the same for tiles and tokens
+    int[,] _prevTileVrijednost = new int[3, 3];
+    int[,] _prevTokenVrijednost = new int[3, 3];
+    Token[] _replaceTokens;
+    Tile[] _replaceTiles;
+    int _moveTokenEvenCounter;
+
+    [SerializeField] Ease izy;
+    const float CONST_TWEENDURATION = 1f;
+    int _tweenFinishedCounter = 0; // inputs (drags) are disabled until tween finishes. Int is used instead of bool beacuse MoveToken is called twice per drag.
+    bool _tweenOneHitCheck = true; // tween are called 6+ times and they all OnComplete(EndTween). That method should be called once, not 6 times.
+
+    bool _displayHints;
+    HintDirection[] _hintOrder;
+    Transform[] _hintElements;
+    Vector2Int[,] _currCoordinates = new Vector2Int[3, 3];
+    Vector2Int[,] _prevCoordinates = new Vector2Int[3, 3];
+    TextMeshProUGUI[] _displayCurrCoordinates;
+    TextMeshProUGUI[] _displayVrijednosti;
+    readonly Vector2Int[] hintPositions =
+    {
+        new Vector2Int(2,1),
+        new Vector2Int(0,1),
+        new Vector2Int(1,0),
+        new Vector2Int(1,2),
+        new Vector2Int(1,1)
+    };
+    readonly Dictionary<int[], int[]> mainPairs = new Dictionary<int[], int[]>();
+    readonly int[] layNull = new int[4] { 0, 0, 0, 0 };
+    readonly int[] lay0 = new int[4] { 1, 2, 3, 4 };
+    readonly int[] lay1 = new int[4] { 1, 2, 4, 3 };
+    readonly int[] lay2 = new int[4] { 1, 3, 2, 4 };
+    readonly int[] lay3 = new int[4] { 1, 3, 4, 2 };
+    readonly int[] lay4 = new int[4] { 1, 4, 2, 3 };
+    readonly int[] lay5 = new int[4] { 1, 4, 3, 2 };
+    readonly int[] lay6 = new int[4] { 2, 1, 3, 4 };
+    readonly int[] lay7 = new int[4] { 2, 1, 4, 3 };
+    readonly int[] lay8 = new int[4] { 2, 3, 1, 4 };
+    readonly int[] lay9 = new int[4] { 2, 3, 4, 1 };
+    readonly int[] lay10 = new int[4] { 2, 4, 1, 3 };
+    readonly int[] lay11 = new int[4] { 2, 4, 3, 1 };
+    readonly int[] lay12 = new int[4] { 3, 1, 2, 4 };
+    readonly int[] lay13 = new int[4] { 3, 1, 4, 2 };
+    readonly int[] lay14 = new int[4] { 3, 2, 1, 4 };
+    readonly int[] lay15 = new int[4] { 3, 2, 4, 1 };
+    readonly int[] lay16 = new int[4] { 3, 4, 1, 2 };
+    readonly int[] lay17 = new int[4] { 3, 4, 2, 1 };
+    readonly int[] lay18 = new int[4] { 4, 1, 2, 3 };
+    readonly int[] lay19 = new int[4] { 4, 1, 3, 2 };
+    readonly int[] lay20 = new int[4] { 4, 2, 1, 3 };
+    readonly int[] lay21 = new int[4] { 4, 2, 3, 1 };
+    readonly int[] lay22 = new int[4] { 4, 3, 1, 2 };
+    readonly int[] lay23 = new int[4] { 4, 3, 2, 1 };
+
+
+    readonly HintDirection[] directions =
+    {
+        HintDirection.None,
+        HintDirection.YYdoubleTap,
+        HintDirection.LeftSwipe,
+        HintDirection.DownSwipe,
+        HintDirection.UpSwipe,
+        HintDirection.YYdoubleTap,
+        HintDirection.YYdoubleTap,
+        HintDirection.DownSwipe,
+        HintDirection.RightSwipe,
+        HintDirection.YYdoubleTap,
+        HintDirection.LeftSwipe,
+        HintDirection.UpSwipe,
+        HintDirection.LeftSwipe,
+        HintDirection.YYdoubleTap,
+        HintDirection.DownSwipe,
+        HintDirection.DownSwipe,
+        HintDirection.RightSwipe,
+        HintDirection.LeftSwipe,
+        HintDirection.YYdoubleTap,
+        HintDirection.LeftSwipe,
+        HintDirection.RightSwipe,
+        HintDirection.YYdoubleTap,
+        HintDirection.YYdoubleTap,
+        HintDirection.DownSwipe
+    };
+
+    private void Awake()
+    {
+        gm = this;
+    }
+    private void Start()
+    {
+        _maxLevels = SceneManager.sceneCountInBuildSettings - 2;
+        levelDisplay.text = $"Level {postavke.level}";
+        toggleHint.isOn = postavke.showHints;
+        _displayHints = postavke.showHints;
+        SceneManager.LoadScene(postavke.level + 1, LoadSceneMode.Additive);
+
+    }
+    #region//EVENTS, BUTTONS
+    private void OnEnable()
+    {
+        HelperScript.LevelFinished += Ev_LevelDone;
+        btnLevelDone[0].onClick.AddListener(Btn_NextLevel);
+        btnLevelDone[1].onClick.AddListener(Btn_MainMenu);
+        btnLevelDone[2].onClick.AddListener(Btn_MainMenu);
+        toggleHint.onValueChanged.AddListener(delegate
+        {
+            Togg_Hint();
+        });
+    }
+    private void OnDisable()
+    {
+        HelperScript.LevelFinished -= Ev_LevelDone;
+        btnLevelDone[0].onClick.RemoveListener(Btn_NextLevel);
+        btnLevelDone[1].onClick.RemoveListener(Btn_MainMenu);
+        btnLevelDone[2].onClick.RemoveListener(Btn_MainMenu);
+        toggleHint.onValueChanged.RemoveAllListeners();
+    }
+    void Ev_LevelDone(int lv)
+    {
+        ResetAllHints();
+        _tweenFinishedCounter = 100;
+        postavke.level++;
+        infoDisplay.text = postavke.level <= _maxLevels ? "Well done! You've solved the puzzle!" : "Congratulations, you've completed game!";
+        levelDoneGO.SetActive(true);
+        btnLevelDone[0].gameObject.SetActive(postavke.level <= _maxLevels);
+        btnLevelDone[1].gameObject.SetActive(true);
+    }
+    void Btn_NextLevel()
+    {
+        SceneManager.LoadScene(1);
+    }
+    void Btn_MainMenu()
+    {
+        SceneManager.LoadScene(0);
+    }
+    void Togg_Hint()
+    {
+        postavke.showHints = toggleHint.isOn;
+        _displayHints = postavke.showHints;
+        MainHint(false);
+    }
+
+    #endregion
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Space)) SceneManager.LoadScene(gameObject.scene.name);
+        else if (Input.GetKeyDown(KeyCode.Escape)) SceneManager.LoadScene(0);
+
+    }
+    #region//INITIALIZATON
+    public void NewGameBoard(int[,] tileV, int[,] tokenV, HintDirection[] hintDir)
+    {
+        _replaceTiles = HelperScript.GetAllChildernByType<Tile>(parTileReplace);
+        _replaceTokens = HelperScript.GetAllChildernByType<Token>(parTokenReplace);
+        InitializationMain(MainType.Tile);
+        InitializationMain(MainType.Token);
+
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                _tiles[i, j].Vrijednost = tileV[i, j];
+                _tokens[i, j].Vrijednost = tokenV[i, j];
+            }
+        }
+        _hintOrder = hintDir;
+        InitializationHint();
+        DefineAllowedDirection();
+    }
+    void InitializationMain(MainType mainType)
+    {
+        int counter = 0;
+        for (int j = 0; j < 3; j++)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (mainType == MainType.Tile)
+                {
+                    _tiles[i, j] = parTile.GetChild(counter).GetComponent<Tile>();
+                    _tiles[i, j].Pozicija = new Vector2Int(i, j);
+                    _tileTransform[i, j] = _tiles[i, j].transform;
+                }
+                else
+                {
+                    _tokens[i, j] = parToken.GetChild(counter).GetComponent<Token>();
+                    _tokens[i, j].Pozicija = new Vector2Int(i, j);
+                    _tokenTransform[i, j] = _tokens[i, j].transform;
+                }
+                counter++;
+            }
+        }
+        counter = 0;
+        if (mainType == MainType.Tile)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    _rectPosition[i, j] = parPositions.GetChild(counter).position;
+                    counter++;
+                }
+            }
+        }
+    }
+    #endregion
+
+    #region//HINT
+    void IniDic()
+    {
+        mainPairs.Add(lay0, layNull);
+        mainPairs.Add(lay1, lay15);
+        mainPairs.Add(lay2, lay14);
+        mainPairs.Add(lay3, lay0);
+        mainPairs.Add(lay4, lay0);
+        mainPairs.Add(lay5, lay11);
+        mainPairs.Add(lay6, lay19);
+        mainPairs.Add(lay7, lay8);
+        mainPairs.Add(lay8, lay0);
+        mainPairs.Add(lay9, lay2);
+        mainPairs.Add(lay10, lay18);
+        mainPairs.Add(lay11, lay8);
+        mainPairs.Add(lay12, lay0);
+        mainPairs.Add(lay13, lay7);
+        mainPairs.Add(lay14, lay17);
+        mainPairs.Add(lay15, lay12);
+        mainPairs.Add(lay16, lay2);
+        mainPairs.Add(lay17, lay21);
+        mainPairs.Add(lay18, lay12);
+        mainPairs.Add(lay19, lay3);
+        mainPairs.Add(lay20, lay4);
+        mainPairs.Add(lay21, lay0);
+        mainPairs.Add(lay22, lay8);
+        mainPairs.Add(lay23, lay19);
+
+        //foreach (KeyValuePair<int[], int[]> item in mainPairs)
+        //{
+        //    print($"{item.Key[0]} {item.Value[0]}");
+        //}
+    }
+
+    void InitializationHint()
+    {
+        _displayHints = postavke.showHints;
+        _hintElements = HelperScript.GetAllChildernByType<Transform>(parHintElements);
+        _displayCurrCoordinates = HelperScript.GetAllChildernByType<TextMeshProUGUI>(parCoord);
+        _displayVrijednosti = HelperScript.GetAllChildernByType<TextMeshProUGUI>(parVrijednosti);
+        int counter = 0;
+        for (int j = 0; j < 3; j++)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                _currCoordinates[i, j] = new Vector2Int(i, j);
+                _displayCurrCoordinates[counter].text = _currCoordinates[i, j].ToString();
+                _displayVrijednosti[counter].text = _tokens[i, j].Vrijednost.ToString();
+                counter++;
+            }
+        }
+        IniDic();
+
+        CoordinatesDisplay(); //privremeno
+        MainHint(true);
+
+    }
+
+    void MainHint(bool updateHint)
+    {
+        ResetAllHints();
+        if (!_displayHints) return;
+
+        int counter = 0;
+        int[] cl = CurrentLayout();
+        foreach (KeyValuePair<int[], int[]> item in mainPairs)
+        {
+            if (item.Key[0] == cl[0] && item.Key[1] == cl[1] && item.Key[2] == cl[2] && item.Key[3] == cl[3])
+            {
+                break;
+            }
+            else counter++;
+        }
+
+        switch (directions[counter])
+        {
+            case HintDirection.UpSwipe:
+                _hintElements[0].position = new Vector3(PositionForHint(hintPositions[0]).x, _tileTransform[1,1].position.y, 0f);
+                _hintElements[0].gameObject.SetActive(true);
+                _hintElements[0].localEulerAngles = new Vector3(0f, 0f, 90f);
+                _hintElements[1].position = new Vector3(PositionForHint(hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[1].gameObject.SetActive(true);
+                _hintElements[1].localEulerAngles = new Vector3(0f, 0f, -90f);
+                break;
+
+            case HintDirection.RightSwipe:
+                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[2]).y, 0f);
+                _hintElements[0].gameObject.SetActive(true);
+                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[3]).y, 0f);
+                _hintElements[1].localEulerAngles = new Vector3(0f, 0f, 180f);
+                _hintElements[1].gameObject.SetActive(true);
+                break;
+
+            case HintDirection.DownSwipe:
+                _hintElements[0].position = new Vector3(PositionForHint(hintPositions[0]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[0].gameObject.SetActive(true);
+                _hintElements[0].localEulerAngles = new Vector3(0f, 0f, -90f);
+                _hintElements[1].position = new Vector3(PositionForHint(hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[1].gameObject.SetActive(true);
+                _hintElements[1].localEulerAngles = new Vector3(0f, 0f, 90f);
+                break;
+
+            case HintDirection.LeftSwipe:
+                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[2]).y, 0f);
+                _hintElements[0].localEulerAngles = new Vector3(0f, 0f, 180f);
+                _hintElements[0].gameObject.SetActive(true);
+                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[3]).y, 0f);
+                _hintElements[1].gameObject.SetActive(true);
+                break;
+
+            case HintDirection.YYdoubleTap:
+                _hintElements[2].position = PositionForHint(hintPositions[4]);
+                _hintElements[2].gameObject.SetActive(true);
+                break;
+        }
+
+    }
+    int[] CurrentLayout()
+    {
+        int[] ints = new int[4];
+        ints[0] = _tokens[IndexForHint(new Vector2Int(1, 0)).x, IndexForHint(new Vector2Int(1, 0)).y].Vrijednost;
+        ints[1] = _tokens[IndexForHint(new Vector2Int(2, 0)).x, IndexForHint(new Vector2Int(2, 0)).y].Vrijednost;
+        ints[2] = _tokens[IndexForHint(new Vector2Int(0, 0)).x, IndexForHint(new Vector2Int(0, 0)).y].Vrijednost;
+        ints[3] = _tokens[IndexForHint(new Vector2Int(2, 1)).x, IndexForHint(new Vector2Int(2, 1)).y].Vrijednost;
+
+        return ints;
+    }
+
+    Vector2 PositionForHint(Vector2Int poz)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (_currCoordinates[i, j].x == poz.x && _currCoordinates[i, j].y == poz.y)
+                {
+                    // print($"{_tileTransform[i, j].name}____{_tileTransform[i, j].position}");
+                    return _tileTransform[i, j].position;
+                }
+            }
+        }
+        return Vector2.zero;
+    }
+    Vector2Int IndexForHint(Vector2Int poz)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (_currCoordinates[i, j].x == poz.x && _currCoordinates[i, j].y == poz.y)
+                {
+                    return new Vector2Int(i,j);
+                }
+            }
+        }
+        return Vector2Int.zero;
+    }
+    void ResetAllHints()
+    {
+        for (int i = 0; i < _hintElements.Length; i++)
+        {
+            _hintElements[i].localEulerAngles = Vector3.zero;
+            _hintElements[i].gameObject.SetActive(false);
+        }
+    }
+    void CoordinatesDisplay()
+    {
+        int counter = 0;
+        for (int j = 0; j < 3; j++)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                _displayCurrCoordinates[counter].text = _currCoordinates[i, j].ToString();
+                _displayVrijednosti[counter].text = _tokens[i, j].Vrijednost.ToString();
+                counter++;
+            }
+        }
+    }
+
+    #endregion
+
+    public void MoveTokenByPosition(Vector2Int moveDir, Vector2Int poz)
+    {
+        if (_tweenFinishedCounter > 1) return;
+        _tweenFinishedCounter++;
+        _tweenOneHitCheck = false;
+        bool incrementHint = _moveTokenEvenCounter % 2 == 0;
+
+        RecordPreviousVrijednost();
+
+        _replaceTokens[_moveTokenEvenCounter].gameObject.SetActive(true);
+
+        if (moveDir.x != 0) //horizontal move
+        {
+            int dirToken = moveDir.x == 1 ? 2 : 1;
+            int dirTransform = moveDir.x == 1 ? 0 : 2;
+            for (int i = 0; i < 3; i++)
+            {
+                _tokens[i, poz.y].Vrijednost = _prevTokenVrijednost[(i + dirToken) % 3, poz.y];
+                _tokenTransform[i, poz.y].DOMove(_rectPosition[i + 1, poz.y + 1], CONST_TWEENDURATION)
+                    .From(_rectPosition[i + dirTransform, poz.y + 1])
+                    .SetEase(izy)
+                    .OnComplete(() => EndTweenDrag(incrementHint));
+            }
+
+            //edge tokens, needed for tween animation only
+            if (moveDir.x == 1)
+            {
+                _replaceTokens[_moveTokenEvenCounter].Vrijednost = _prevTokenVrijednost[2, poz.y];
+                _replaceTokens[_moveTokenEvenCounter].transform.DOMove(_rectPosition[4, poz.y + 1], CONST_TWEENDURATION)
+                    .SetEase(izy)
+                    .From(_rectPosition[3, poz.y + 1]);
+            }
+            else
+            {
+                _replaceTokens[_moveTokenEvenCounter].Vrijednost = _prevTokenVrijednost[0, poz.y];
+                _replaceTokens[_moveTokenEvenCounter].transform.DOMove(_rectPosition[0, poz.y + 1], CONST_TWEENDURATION)
+                    .SetEase(izy)
+                    .From(_rectPosition[1, poz.y + 1]);
+            }
+        }
+        else if (moveDir.y != 0) //vertical move
+        {
+            int dirToken = moveDir.y == 1 ? 2 : 1;
+            int dirTransform = moveDir.y == 1 ? 0 : 2;
+            for (int j = 0; j < 3; j++)
+            {
+                _tokens[poz.x, j].Vrijednost = _prevTokenVrijednost[poz.x, (j + dirToken) % 3];
+                _tokenTransform[poz.x, j].DOMove(_rectPosition[poz.x + 1, j + 1], CONST_TWEENDURATION)
+                    .From(_rectPosition[poz.x + 1, j + dirTransform])
+                    .SetEase(izy)
+                    .OnComplete(() => EndTweenDrag(incrementHint));
+            }
+
+            //edge tokens, needed for tween animation only
+            if (moveDir.y == 1)
+            {
+                _replaceTokens[_moveTokenEvenCounter].Vrijednost = _prevTokenVrijednost[poz.x, 2];
+                _replaceTokens[_moveTokenEvenCounter].transform.DOMove(_rectPosition[poz.x + 1, 4], CONST_TWEENDURATION)
+                    .SetEase(izy)
+                    .From(_rectPosition[poz.x + 1, 3]);
+
+            }
+            else
+            {
+                _replaceTokens[_moveTokenEvenCounter].Vrijednost = _prevTokenVrijednost[poz.x, 0];
+                _replaceTokens[_moveTokenEvenCounter].transform.DOMove(_rectPosition[poz.x + 1, 0], CONST_TWEENDURATION)
+                    .SetEase(izy)
+                    .From(_rectPosition[poz.x + 1, 1]);
+            }
+
+        }
+
+        ResetAllHints();
+        _moveTokenEvenCounter = (1 + _moveTokenEvenCounter) % 2;
+    }
+    public Vector2Int OppositePos(Vector2Int moveDirection, Vector2Int currentPosition)
+    {
+        Vector2Int v2Int = Vector2Int.zero;
+        List<int> allPoz = new List<int> { 0, 1, 2 };
+        if (moveDirection.x != 0) //horizontal move
+        {
+            v2Int.x = currentPosition.x;
+            allPoz.Remove(currentPosition.y);
+            allPoz.Remove(PositionYY().y);
+            v2Int.y = allPoz[0];
+        }
+        else if (moveDirection.y != 0) //vertical move
+        {
+            v2Int.y = currentPosition.y;
+            allPoz.Remove(currentPosition.x);
+            allPoz.Remove(PositionYY().x);
+            v2Int.x = allPoz[0];
+        }
+
+        return v2Int;
+    }
+    Vector2Int PositionYY()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (_tiles[i, j].Vrijednost == 0)
+                {
+                    _tiles[i, j].allowedDirection = AllowedDirection.MiddlePoint;
+                    return _tiles[i, j].Pozicija;
+                }
+            }
+        }
+        return Vector2Int.zero;
+    }
+    public void MoveWholeBoard(Vector2Int moveDir)
+    {
+        if (_tweenFinishedCounter > 0) return;
+        _tweenFinishedCounter = 100;
+        _tweenOneHitCheck = false;
+
+        RecordPreviousVrijednost();
+        ResetAllHints();
+
+        int newValueTT = 0;
+        if (moveDir.x != 0)
+        {
+            int dirTransform = moveDir.x == 1 ? 0 : 2;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    newValueTT = i + moveDir.x;
+                    if (newValueTT > 2) newValueTT = 0;
+                    else if (newValueTT < 0) newValueTT = 2;
+
+                    _tiles[newValueTT, j].Vrijednost = _prevTileVrijednost[i, j];
+                    _tileTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
+                           .From(_rectPosition[i + dirTransform, j + 1])
+                           .SetEase(izy)
+                           .OnComplete(() => EndTweenDrag(false));
+
+                    _tokens[newValueTT, j].Vrijednost = _prevTokenVrijednost[i, j];
+                    _tokenTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
+                           .From(_rectPosition[i + dirTransform, j + 1])
+                           .SetEase(izy);
+
+                    _currCoordinates[newValueTT, j] = _prevCoordinates[i, j];
+                }
+            }
+
+            //edge tokens, needed for tween animation only
+            if (moveDir.x == 1)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    _replaceTiles[j].gameObject.SetActive(true);
+                    _replaceTiles[j].Vrijednost = _prevTileVrijednost[2, j];
+                    _replaceTiles[j].transform.DOMove(_rectPosition[4, j + 1], CONST_TWEENDURATION)
+                             .From(_rectPosition[3, j + 1])
+                             .SetEase(izy);
+
+                    _replaceTokens[j].gameObject.SetActive(true);
+                    _replaceTokens[j].Vrijednost = _prevTokenVrijednost[2, j];
+                    _replaceTokens[j].transform.DOMove(_rectPosition[4, j + 1], CONST_TWEENDURATION)
+                             .From(_rectPosition[3, j + 1])
+                             .SetEase(izy);
+                }
+            }
+            else if (moveDir.x == -1)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    _replaceTiles[j].gameObject.SetActive(true);
+                    _replaceTiles[j].Vrijednost = _prevTileVrijednost[0, j];
+                    _replaceTiles[j].transform.DOMove(_rectPosition[0, j + 1], CONST_TWEENDURATION)
+                             .From(_rectPosition[1, j + 1])
+                             .SetEase(izy);
+
+                    _replaceTokens[j].gameObject.SetActive(true);
+                    _replaceTokens[j].Vrijednost = _prevTokenVrijednost[0, j];
+                    _replaceTokens[j].transform.DOMove(_rectPosition[0, j + 1], CONST_TWEENDURATION)
+                             .From(_rectPosition[1, j + 1])
+                             .SetEase(izy);
+                }
+            }
+        }
+        else if (moveDir.y != 0)
+        {
+            int dirTransform = moveDir.y == 1 ? 0 : 2;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    newValueTT = j + moveDir.y;
+                    if (newValueTT > 2) newValueTT = 0;
+                    else if (newValueTT < 0) newValueTT = 2;
+
+                    _tiles[i, newValueTT].Vrijednost = _prevTileVrijednost[i, j];
+                    _tileTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
+                           .From(_rectPosition[i + 1, j + dirTransform])
+                           .SetEase(izy)
+                           .OnComplete(() => EndTweenDrag(false));
+
+                    _tokens[i, newValueTT].Vrijednost = _prevTokenVrijednost[i, j];
+                    _tokenTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
+                           .From(_rectPosition[i + 1, j + dirTransform])
+                           .SetEase(izy);
+
+                    _currCoordinates[i, newValueTT] = _prevCoordinates[i, j];
+                }
+            }
+
+            //edge tokens, needed for tween animation only
+            if (moveDir.y == 1)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    _replaceTiles[i].gameObject.SetActive(true);
+                    _replaceTiles[i].Vrijednost = _prevTileVrijednost[i, 2];
+                    _replaceTiles[i].transform.DOMove(_rectPosition[i + 1, 4], CONST_TWEENDURATION)
+                             .From(_rectPosition[i + 1, 3])
+                             .SetEase(izy);
+
+                    _replaceTokens[i].gameObject.SetActive(true);
+                    _replaceTokens[i].Vrijednost = _prevTokenVrijednost[i, 2];
+                    _replaceTokens[i].transform.DOMove(_rectPosition[i + 1, 4], CONST_TWEENDURATION)
+                             .From(_rectPosition[i + 1, 3])
+                             .SetEase(izy);
+                }
+            }
+            else if (moveDir.y == -1)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    _replaceTiles[i].gameObject.SetActive(true);
+                    _replaceTiles[i].Vrijednost = _prevTileVrijednost[i, 0];
+                    _replaceTiles[i].transform.DOMove(_rectPosition[i + 1, 0], CONST_TWEENDURATION)
+                             .From(_rectPosition[i + 1, 1])
+                             .SetEase(izy);
+
+                    _replaceTokens[i].gameObject.SetActive(true);
+                    _replaceTokens[i].Vrijednost = _prevTokenVrijednost[i, 0];
+                    _replaceTokens[i].transform.DOMove(_rectPosition[i + 1, 0], CONST_TWEENDURATION)
+                             .From(_rectPosition[i + 1, 1])
+                             .SetEase(izy);
+                }
+            }
+
+        }
+    }
+
+    void DefineAllowedDirection()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                _tiles[i, j].allowedDirection = AllowedDirection.All;
+            }
+        }
+        _tiles[PositionYY().x, PositionYY().y].allowedDirection = AllowedDirection.MiddlePoint;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (_tiles[i, PositionYY().y].Vrijednost != 0) _tiles[i, PositionYY().y].allowedDirection = AllowedDirection.Vertical;
+            if (_tiles[PositionYY().x, i].Vrijednost != 0) _tiles[PositionYY().x, i].allowedDirection = AllowedDirection.Horizontal;
+        }
+    }
+    void RecordPreviousVrijednost()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                _prevTileVrijednost[i, j] = _tiles[i, j].Vrijednost;
+                _prevTokenVrijednost[i, j] = _tokens[i, j].Vrijednost;
+                _prevCoordinates[i, j] = _currCoordinates[i, j];
+            }
+        }
+    }
+
+    public void MiddlePointActivation(Vector2Int poz)
+    {
+        if (_tweenFinishedCounter > 0) return;
+        _tweenFinishedCounter = 100;
+        _tweenOneHitCheck = false;
+
+        RecordPreviousVrijednost();
+        ResetAllHints();
+
+        Vector2Int greater = LimitVectorInt(poz + Vector2Int.one);
+        Vector2Int smaller = LimitVectorInt(poz - Vector2Int.one);
+
+        _tokens[poz.x, greater.y].Vrijednost = _prevTokenVrijednost[smaller.x, poz.y];
+        _tokenTransform[poz.x, greater.y].DOMove(_rectPosition[poz.x + 1, greater.y + 1], CONST_TWEENDURATION)
+            .From(_rectPosition[smaller.x + 1, poz.y + 1])
+            .SetEase(izy)
+            .OnComplete(() => EndTweenDrag(true));
+
+        _tokens[smaller.x, poz.y].Vrijednost = _prevTokenVrijednost[poz.x, greater.y];
+        _tokenTransform[smaller.x, poz.y].DOMove(_rectPosition[smaller.x + 1, poz.y + 1], CONST_TWEENDURATION)
+            .From(_rectPosition[poz.x + 1, greater.y + 1])
+            .SetEase(izy);
+
+        _tokens[poz.x, smaller.y].Vrijednost = _prevTokenVrijednost[greater.x, poz.y];
+        _tokenTransform[poz.x, smaller.y].DOMove(_rectPosition[poz.x + 1, smaller.y + 1], CONST_TWEENDURATION)
+            .From(_rectPosition[greater.x + 1, poz.y + 1])
+            .SetEase(izy);
+
+        _tokens[greater.x, poz.y].Vrijednost = _prevTokenVrijednost[poz.x, smaller.y];
+        _tokenTransform[greater.x, poz.y].DOMove(_rectPosition[greater.x + 1, poz.y + 1], CONST_TWEENDURATION)
+            .From(_rectPosition[poz.x + 1, smaller.y + 1])
+            .SetEase(izy);
+    }
+    Vector2Int LimitVectorInt(Vector2Int v2Int)
+    {
+        Vector2Int vToLimit = v2Int;
+        if (vToLimit.x > 2) vToLimit.x = 0;
+        else if (vToLimit.x < 0) vToLimit.x = 2;
+        if (vToLimit.y > 2) vToLimit.y = 0;
+        else if (vToLimit.y < 0) vToLimit.y = 2;
+
+        return vToLimit;
+    }
+    void CheckGameFinished()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (_tiles[i, j].Vrijednost != _tokens[i, j].Vrijednost) return;
+            }
+        }
+
+        if (!_levelDone) HelperScript.LevelFinished?.Invoke(postavke.level);
+        _levelDone = true;
+    }
+
+    void EndTweenDrag(bool updateHint)
+    {
+        if (!_tweenOneHitCheck)
+        {
+            _tweenOneHitCheck = true;
+        }
+        else return;
+        _tweenFinishedCounter = 0;
+
+        for (int i = 0; i < 9; i++)
+        {
+            _replaceTiles[i].gameObject.SetActive(false);
+            _replaceTokens[i].gameObject.SetActive(false);
+        }
+
+        MainHint(updateHint);
+        CheckGameFinished();
+        DefineAllowedDirection();
+        CoordinatesDisplay();
+
+    }
+
+}
