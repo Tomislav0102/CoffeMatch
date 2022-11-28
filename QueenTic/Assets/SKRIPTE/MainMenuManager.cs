@@ -7,7 +7,7 @@ using TMPro;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [SerializeField] SO_postavke postavke;
+    [SerializeField] So_Postavke postavke;
     [SerializeField] Button btnPlay, btnQuit;
     [SerializeField] TMP_Dropdown ddLevel;
     

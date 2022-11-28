@@ -10,7 +10,8 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     GameManager gm;
 
     [SerializeField] bool canBeDraged = true;
-    [SerializeField] Image _img;
+    [SerializeField] Image image;
+    [SerializeField] int pocetnaVrijednost;
     public AllowedDirection allowedDirection;
 
     public int Vrijednost
@@ -19,19 +20,10 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
         set
         {
             _vrijednost = value;
-            _img.color = gm.postavke.boje[value];
+            image.sprite = gm.postavke.tileSprites[_vrijednost];
         }
     }
     int _vrijednost;
-    //public int Ordinal
-    //{
-    //    get => _ordinal;
-    //    set
-    //    {
-    //        _ordinal = value;
-    //    }
-    //}
-    //int _ordinal;
 
     public Vector2Int Pozicija 
     {
@@ -54,8 +46,21 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     private void Awake()
     {
         gm = GameManager.gm;
+        Vrijednost = pocetnaVrijednost;
     }
 
+    void OnEnable()
+    {
+        HelperScript.SkinUpdated += Skins;
+    }
+    void OnDisable()
+    {
+        HelperScript.SkinUpdated -= Skins;
+    }
+    void Skins()
+    {
+        Vrijednost = Vrijednost;
+    }
     void Update()
     {
         if (!canBeDraged) return;
@@ -69,6 +74,7 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
             }
         }
     }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!canBeDraged) return;
@@ -77,18 +83,18 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
        // print($"Float -- {_dragDelta}");
         if (allowedDirection == AllowedDirection.MiddlePoint)
         {
-            if (Mathf.Abs(_dragDelta.x) > Mathf.Abs(_dragDelta.y))
-            {
-                _moveDir = new Vector2Int(_dragDelta.x > 0 ? 1 : -1, 0);
-            }
-            else if (Mathf.Abs(_dragDelta.x) < Mathf.Abs(_dragDelta.y))
-            {
-                _moveDir = new Vector2Int(0, _dragDelta.y > 0 ? 1 : -1);
-            }
-            else return;
+            //if (Mathf.Abs(_dragDelta.x) > Mathf.Abs(_dragDelta.y))
+            //{
+            //    _moveDir = new Vector2Int(_dragDelta.x > 0 ? 1 : -1, 0);
+            //}
+            //else if (Mathf.Abs(_dragDelta.x) < Mathf.Abs(_dragDelta.y))
+            //{
+            //    _moveDir = new Vector2Int(0, _dragDelta.y > 0 ? 1 : -1);
+            //}
+            //else return;
 
-            //  print($"INT -- {_moveDir}");
-            gm.MoveWholeBoard(_moveDir);
+            ////  print($"INT -- {_moveDir}");
+            //gm.MoveWholeBoard(_moveDir);
 
 
             return;
@@ -122,6 +128,8 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        gm.MiddlePointActivation(new Vector2Int(1,1));
+        return;
         if (allowedDirection != AllowedDirection.MiddlePoint) return;
 
         if (_firstClick)

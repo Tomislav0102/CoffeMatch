@@ -9,15 +9,28 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c08e7f66d1cedfe46878e1ac32753f56, type: 3}
-  m_Name: postavke
-  m_EditorClassIdentifier: 
-  level: 6
+  m_Script: {fileID: 0}
+  m_Name: Postavke
+  m_EditorClassIdentifier: Assembly-CSharp::So_Postavke
+  level: 2
   score: 0
   showHints: 1
   boje:
-  - {r: 0.74509805, g: 0.74509805, b: 0.74509805, a: 1}
-  - {r: 0.3764706, g: 0.8980392, b: 0.7529412, a: 1}
-  - {r: 0.19215687, g: 0.7137255, b: 0.79607844, a: 1}
-  - {r: 0.8901961, g: 0.44313726, b: 0.49019608, a: 1}
-  - {r: 0.98039216, g: 0.85882354, b: 0.32156864, a: 1}
+  - {r: 0, g: 0, b: 0, a: 0}
+  - {r: 0, g: 0, b: 0, a: 0}
+  - {r: 0, g: 0, b: 0, a: 0}
+  - {r: 0, g: 0, b: 0, a: 0}
+  - {r: 0, g: 0, b: 0, a: 0}
+  skinOrdinal: 1
+  tileSprites:
+  - {fileID: 21300000, guid: 84a0206a45aab0c468ad1a70d36203cc, type: 3}
+  - {fileID: 21300000, guid: 89dfc771171c2d04ba04fa2d387ac517, type: 3}
+  - {fileID: 21300000, guid: 818e559dd866e9342afc6905d0c0acf3, type: 3}
+  - {fileID: 21300000, guid: c07810ba6dbb7c1438bd9d8a5fab4475, type: 3}
+  - {fileID: 21300000, guid: 0a180eedd2ef61a47aa7482ceff545c5, type: 3}
+  tokenSprites:
+  - {fileID: 21300000, guid: f996564bd18e0e54db895faead62c768, type: 3}
+  - {fileID: 21300000, guid: ad51e818c5c222b42bd073500db7a8be, type: 3}
+  - {fileID: 21300000, guid: df7010c3a15db0c4685be216898c6047, type: 3}
+  - {fileID: 21300000, guid: 4f794271b9f1aae48bbfcae1528926ad, type: 3}
+  - {fileID: 21300000, guid: 970c4a8a8135a784ea8d181e7710749b, type: 3}

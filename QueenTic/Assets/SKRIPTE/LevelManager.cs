@@ -6,7 +6,7 @@ using FirstCollection;
 public class LevelManager : MonoBehaviour
 {
     GameManager gm;
-    [SerializeField] SO_postavke postavke;
+    [SerializeField] So_Postavke postavke;
     [SerializeField] HintDirection[] hintOrder;
     int[,] _tilesVrijednosti = new int[3, 3];
     int[,] _tokensVrijednosti = new int[3, 3];
@@ -39,6 +39,6 @@ public class LevelManager : MonoBehaviour
         _tokensVrijednosti[1, 2] = tokens12;
         _tokensVrijednosti[2, 2] = tokens22;
 
-        gm.NewGameBoard(_tilesVrijednosti, _tokensVrijednosti, hintOrder);
+       // gm.NewGameBoard(_tokensVrijednosti);
     }
 }

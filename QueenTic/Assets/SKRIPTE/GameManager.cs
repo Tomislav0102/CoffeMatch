@@ -7,19 +7,20 @@ using TMPro;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
 using System;
+using System.Drawing;
+using System.Linq;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager gm;
-    public SO_postavke postavke;
+    public So_Postavke postavke;
     public LevelManager levelManager;
     [SerializeField] Transform kanvas;
     [SerializeField] Transform parTile, parToken, parPositions, parTileReplace, parTokenReplace, parCoord, parHintElements, parVrijednosti;
     [SerializeField] GameObject levelDoneGO;
     [SerializeField] Button[] btnLevelDone;
-    [SerializeField] TextMeshProUGUI infoDisplay, levelDisplay;
+    [SerializeField] Button btnHint;
     [SerializeField] Toggle toggleHint;
-    int _maxLevels;
     bool _levelDone;
 
     Tile[,] _tiles = new Tile[3, 3];
@@ -38,14 +39,14 @@ public class GameManager : MonoBehaviour
     int _tweenFinishedCounter = 0; // inputs (drags) are disabled until tween finishes. Int is used instead of bool beacuse MoveToken is called twice per drag.
     bool _tweenOneHitCheck = true; // tween are called 6+ times and they all OnComplete(EndTween). That method should be called once, not 6 times.
 
+    #region//HINT VARIABLES
     bool _displayHints;
-    HintDirection[] _hintOrder;
     Transform[] _hintElements;
     Vector2Int[,] _currCoordinates = new Vector2Int[3, 3];
     Vector2Int[,] _prevCoordinates = new Vector2Int[3, 3];
     TextMeshProUGUI[] _displayCurrCoordinates;
     TextMeshProUGUI[] _displayVrijednosti;
-    readonly Vector2Int[] hintPositions =
+    readonly Vector2Int[] _hintPositions =
     {
         new Vector2Int(2,1),
         new Vector2Int(0,1),
@@ -53,7 +54,8 @@ public class GameManager : MonoBehaviour
         new Vector2Int(1,2),
         new Vector2Int(1,1)
     };
-    readonly Dictionary<int[], int[]> mainPairs = new Dictionary<int[], int[]>();
+    readonly Dictionary<int[], int[]> _mainPairs = new Dictionary<int[], int[]>();
+    readonly List<int[]> _allCombinations = new List<int[]>();
     readonly int[] layNull = new int[4] { 0, 0, 0, 0 };
     readonly int[] lay0 = new int[4] { 1, 2, 3, 4 };
     readonly int[] lay1 = new int[4] { 1, 2, 4, 3 };
@@ -81,7 +83,8 @@ public class GameManager : MonoBehaviour
     readonly int[] lay23 = new int[4] { 4, 3, 2, 1 };
 
 
-    readonly HintDirection[] directions =
+
+    readonly HintDirection[] _directions =
     {
         HintDirection.None,
         HintDirection.YYdoubleTap,
@@ -108,6 +111,7 @@ public class GameManager : MonoBehaviour
         HintDirection.YYdoubleTap,
         HintDirection.DownSwipe
     };
+    #endregion
 
     private void Awake()
     {
@@ -115,12 +119,10 @@ public class GameManager : MonoBehaviour
     }
     private void Start()
     {
-        _maxLevels = SceneManager.sceneCountInBuildSettings - 2;
-        levelDisplay.text = $"Level {postavke.level}";
         toggleHint.isOn = postavke.showHints;
         _displayHints = postavke.showHints;
-        SceneManager.LoadScene(postavke.level + 1, LoadSceneMode.Additive);
-
+        //  SceneManager.LoadScene(postavke.level + 1, LoadSceneMode.Additive);
+        NewGameBoard();
     }
     #region//EVENTS, BUTTONS
     private void OnEnable()
@@ -129,6 +131,7 @@ public class GameManager : MonoBehaviour
         btnLevelDone[0].onClick.AddListener(Btn_NextLevel);
         btnLevelDone[1].onClick.AddListener(Btn_MainMenu);
         btnLevelDone[2].onClick.AddListener(Btn_MainMenu);
+        btnHint.onClick.AddListener(Btn_Hint);
         toggleHint.onValueChanged.AddListener(delegate
         {
             Togg_Hint();
@@ -140,6 +143,7 @@ public class GameManager : MonoBehaviour
         btnLevelDone[0].onClick.RemoveListener(Btn_NextLevel);
         btnLevelDone[1].onClick.RemoveListener(Btn_MainMenu);
         btnLevelDone[2].onClick.RemoveListener(Btn_MainMenu);
+        btnHint.onClick.RemoveListener(Btn_Hint);
         toggleHint.onValueChanged.RemoveAllListeners();
     }
     void Ev_LevelDone(int lv)
@@ -147,9 +151,8 @@ public class GameManager : MonoBehaviour
         ResetAllHints();
         _tweenFinishedCounter = 100;
         postavke.level++;
-        infoDisplay.text = postavke.level <= _maxLevels ? "Well done! You've solved the puzzle!" : "Congratulations, you've completed game!";
         levelDoneGO.SetActive(true);
-        btnLevelDone[0].gameObject.SetActive(postavke.level <= _maxLevels);
+        btnLevelDone[0].gameObject.SetActive(true);
         btnLevelDone[1].gameObject.SetActive(true);
     }
     void Btn_NextLevel()
@@ -159,6 +162,12 @@ public class GameManager : MonoBehaviour
     void Btn_MainMenu()
     {
         SceneManager.LoadScene(0);
+    }
+    void Btn_Hint()
+    {
+        postavke.showHints = !postavke.showHints;
+        _displayHints = postavke.showHints;
+        MainHint(false);
     }
     void Togg_Hint()
     {
@@ -175,25 +184,58 @@ public class GameManager : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.Escape)) SceneManager.LoadScene(0);
 
     }
-    #region//INITIALIZATON
-    public void NewGameBoard(int[,] tileV, int[,] tokenV, HintDirection[] hintDir)
+    #region //INITIALIZATON
+
+    void NewGameBoard()
     {
+        SkinChooser(1);
+
         _replaceTiles = HelperScript.GetAllChildernByType<Tile>(parTileReplace);
         _replaceTokens = HelperScript.GetAllChildernByType<Token>(parTokenReplace);
         InitializationMain(MainType.Tile);
         InitializationMain(MainType.Token);
 
-        for (int i = 0; i < 3; i++)
-        {
-            for (int j = 0; j < 3; j++)
-            {
-                _tiles[i, j].Vrijednost = tileV[i, j];
-                _tokens[i, j].Vrijednost = tokenV[i, j];
-            }
-        }
-        _hintOrder = hintDir;
+        IniDic();
+
+        int newLevel = RandomLevel(postavke.level);
+        _tokens[1, 0].Vrijednost = _tokens[1, 2].Vrijednost = _allCombinations[newLevel][0];
+        _tokens[2, 0].Vrijednost = _tokens[0, 2].Vrijednost = _allCombinations[newLevel][1];
+        _tokens[0, 0].Vrijednost = _tokens[2, 2].Vrijednost = _allCombinations[newLevel][2];
+        _tokens[0, 1].Vrijednost = _tokens[2, 1].Vrijednost = _allCombinations[newLevel][3];
         InitializationHint();
         DefineAllowedDirection();
+    }
+    void SkinChooser(int skin)
+    {
+        postavke.skinOrdinal = skin;
+        postavke.tileSprites.Clear();
+        postavke.tokenSprites.Clear();
+
+        string dec = skin < 10 ? "0" : "";
+        string folderName = "Skin" + dec + skin.ToString();
+        Sprite[] allSprites = Resources.LoadAll<Sprite>(folderName);
+        if (allSprites == null || allSprites.Length <= 0)
+        {
+            Debug.Log("Can't find skin, returning default skin");
+            allSprites = Resources.LoadAll<Sprite>("Skin00");
+        }
+        for (int i = 0; i < allSprites.Length; i++)
+        {
+            if (i % 2 == 0) postavke.tileSprites.Add(allSprites[i]);
+            else postavke.tokenSprites.Add(allSprites[i]);
+        }
+
+        HelperScript.SkinUpdated?.Invoke();
+
+    }
+    int RandomLevel(int prevLevel)
+    {
+        List<int> brojevi = Enumerable.Range(0, 24).ToList();
+        brojevi.Remove(prevLevel - 1);
+        var rnd = new System.Random();
+        List<int> list = brojevi.OrderBy(n => rnd.Next()).ToList();
+        postavke.level = list[0];
+        return list[0];
     }
     void InitializationMain(MainType mainType)
     {
@@ -232,39 +274,7 @@ public class GameManager : MonoBehaviour
     }
     #endregion
 
-    #region//HINT
-    void IniDic()
-    {
-        mainPairs.Add(lay0, layNull);
-        mainPairs.Add(lay1, lay15);
-        mainPairs.Add(lay2, lay14);
-        mainPairs.Add(lay3, lay0);
-        mainPairs.Add(lay4, lay0);
-        mainPairs.Add(lay5, lay11);
-        mainPairs.Add(lay6, lay19);
-        mainPairs.Add(lay7, lay8);
-        mainPairs.Add(lay8, lay0);
-        mainPairs.Add(lay9, lay2);
-        mainPairs.Add(lay10, lay18);
-        mainPairs.Add(lay11, lay8);
-        mainPairs.Add(lay12, lay0);
-        mainPairs.Add(lay13, lay7);
-        mainPairs.Add(lay14, lay17);
-        mainPairs.Add(lay15, lay12);
-        mainPairs.Add(lay16, lay2);
-        mainPairs.Add(lay17, lay21);
-        mainPairs.Add(lay18, lay12);
-        mainPairs.Add(lay19, lay3);
-        mainPairs.Add(lay20, lay4);
-        mainPairs.Add(lay21, lay0);
-        mainPairs.Add(lay22, lay8);
-        mainPairs.Add(lay23, lay19);
-
-        //foreach (KeyValuePair<int[], int[]> item in mainPairs)
-        //{
-        //    print($"{item.Key[0]} {item.Value[0]}");
-        //}
-    }
+    #region //HINT
 
     void InitializationHint()
     {
@@ -283,11 +293,67 @@ public class GameManager : MonoBehaviour
                 counter++;
             }
         }
-        IniDic();
 
         CoordinatesDisplay(); //privremeno
         MainHint(true);
 
+    }
+    void IniDic()
+    {
+        _allCombinations.Add(lay1);
+        _allCombinations.Add(lay2);
+        _allCombinations.Add(lay3);
+        _allCombinations.Add(lay4);
+        _allCombinations.Add(lay5);
+        _allCombinations.Add(lay6);
+        _allCombinations.Add(lay7);
+        _allCombinations.Add(lay8);
+        _allCombinations.Add(lay9);
+        _allCombinations.Add(lay10);
+        _allCombinations.Add(lay11);
+        _allCombinations.Add(lay12);
+        _allCombinations.Add(lay13);
+        _allCombinations.Add(lay14);
+        _allCombinations.Add(lay15);
+        _allCombinations.Add(lay16);
+        _allCombinations.Add(lay17);
+        _allCombinations.Add(lay18);
+        _allCombinations.Add(lay19);
+        _allCombinations.Add(lay20);
+        _allCombinations.Add(lay21);
+        _allCombinations.Add(lay22);
+        _allCombinations.Add(lay23);
+        _allCombinations.Add(lay0);
+
+        _mainPairs.Add(lay0, layNull);
+        _mainPairs.Add(lay1, lay15);
+        _mainPairs.Add(lay2, lay14);
+        _mainPairs.Add(lay3, lay0);
+        _mainPairs.Add(lay4, lay0);
+        _mainPairs.Add(lay5, lay11);
+        _mainPairs.Add(lay6, lay19);
+        _mainPairs.Add(lay7, lay8);
+        _mainPairs.Add(lay8, lay0);
+        _mainPairs.Add(lay9, lay2);
+        _mainPairs.Add(lay10, lay18);
+        _mainPairs.Add(lay11, lay8);
+        _mainPairs.Add(lay12, lay0);
+        _mainPairs.Add(lay13, lay7);
+        _mainPairs.Add(lay14, lay17);
+        _mainPairs.Add(lay15, lay12);
+        _mainPairs.Add(lay16, lay2);
+        _mainPairs.Add(lay17, lay21);
+        _mainPairs.Add(lay18, lay12);
+        _mainPairs.Add(lay19, lay3);
+        _mainPairs.Add(lay20, lay4);
+        _mainPairs.Add(lay21, lay0);
+        _mainPairs.Add(lay22, lay8);
+        _mainPairs.Add(lay23, lay19);
+
+        //foreach (KeyValuePair<int[], int[]> item in mainPairs)
+        //{
+        //    print($"{item.Key[0]} {item.Value[0]}");
+        //}
     }
 
     void MainHint(bool updateHint)
@@ -297,7 +363,7 @@ public class GameManager : MonoBehaviour
 
         int counter = 0;
         int[] cl = CurrentLayout();
-        foreach (KeyValuePair<int[], int[]> item in mainPairs)
+        foreach (KeyValuePair<int[], int[]> item in _mainPairs)
         {
             if (item.Key[0] == cl[0] && item.Key[1] == cl[1] && item.Key[2] == cl[2] && item.Key[3] == cl[3])
             {
@@ -306,44 +372,44 @@ public class GameManager : MonoBehaviour
             else counter++;
         }
 
-        switch (directions[counter])
+        switch (_directions[counter])
         {
             case HintDirection.UpSwipe:
-                _hintElements[0].position = new Vector3(PositionForHint(hintPositions[0]).x, _tileTransform[1,1].position.y, 0f);
+                _hintElements[0].position = new Vector3(PositionForHint(_hintPositions[0]).x, _tileTransform[1,1].position.y, 0f);
                 _hintElements[0].gameObject.SetActive(true);
                 _hintElements[0].localEulerAngles = new Vector3(0f, 0f, 90f);
-                _hintElements[1].position = new Vector3(PositionForHint(hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[1].position = new Vector3(PositionForHint(_hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
                 _hintElements[1].gameObject.SetActive(true);
                 _hintElements[1].localEulerAngles = new Vector3(0f, 0f, -90f);
                 break;
 
             case HintDirection.RightSwipe:
-                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[2]).y, 0f);
+                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(_hintPositions[2]).y, 0f);
                 _hintElements[0].gameObject.SetActive(true);
-                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[3]).y, 0f);
+                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(_hintPositions[3]).y, 0f);
                 _hintElements[1].localEulerAngles = new Vector3(0f, 0f, 180f);
                 _hintElements[1].gameObject.SetActive(true);
                 break;
 
             case HintDirection.DownSwipe:
-                _hintElements[0].position = new Vector3(PositionForHint(hintPositions[0]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[0].position = new Vector3(PositionForHint(_hintPositions[0]).x, _tileTransform[1, 1].position.y, 0f);
                 _hintElements[0].gameObject.SetActive(true);
                 _hintElements[0].localEulerAngles = new Vector3(0f, 0f, -90f);
-                _hintElements[1].position = new Vector3(PositionForHint(hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
+                _hintElements[1].position = new Vector3(PositionForHint(_hintPositions[1]).x, _tileTransform[1, 1].position.y, 0f);
                 _hintElements[1].gameObject.SetActive(true);
                 _hintElements[1].localEulerAngles = new Vector3(0f, 0f, 90f);
                 break;
 
             case HintDirection.LeftSwipe:
-                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[2]).y, 0f);
+                _hintElements[0].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(_hintPositions[2]).y, 0f);
                 _hintElements[0].localEulerAngles = new Vector3(0f, 0f, 180f);
                 _hintElements[0].gameObject.SetActive(true);
-                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(hintPositions[3]).y, 0f);
+                _hintElements[1].position = new Vector3(_tileTransform[1, 1].position.x, PositionForHint(_hintPositions[3]).y, 0f);
                 _hintElements[1].gameObject.SetActive(true);
                 break;
 
             case HintDirection.YYdoubleTap:
-                _hintElements[2].position = PositionForHint(hintPositions[4]);
+                _hintElements[2].position = PositionForHint(_hintPositions[4]);
                 _hintElements[2].gameObject.SetActive(true);
                 break;
         }
@@ -413,6 +479,7 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
+    #region//MAIN MECHANICS
     public void MoveTokenByPosition(Vector2Int moveDir, Vector2Int poz)
     {
         if (_tweenFinishedCounter > 1) return;
@@ -496,20 +563,20 @@ public class GameManager : MonoBehaviour
         {
             v2Int.x = currentPosition.x;
             allPoz.Remove(currentPosition.y);
-            allPoz.Remove(PositionYY().y);
+            allPoz.Remove(PositionYy().y);
             v2Int.y = allPoz[0];
         }
         else if (moveDirection.y != 0) //vertical move
         {
             v2Int.y = currentPosition.y;
             allPoz.Remove(currentPosition.x);
-            allPoz.Remove(PositionYY().x);
+            allPoz.Remove(PositionYy().x);
             v2Int.x = allPoz[0];
         }
 
         return v2Int;
     }
-    Vector2Int PositionYY()
+    Vector2Int PositionYy()
     {
         for (int i = 0; i < 3; i++)
         {
@@ -533,7 +600,7 @@ public class GameManager : MonoBehaviour
         RecordPreviousVrijednost();
         ResetAllHints();
 
-        int newValueTT = 0;
+        int newValueTt = 0;
         if (moveDir.x != 0)
         {
             int dirTransform = moveDir.x == 1 ? 0 : 2;
@@ -541,22 +608,22 @@ public class GameManager : MonoBehaviour
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    newValueTT = i + moveDir.x;
-                    if (newValueTT > 2) newValueTT = 0;
-                    else if (newValueTT < 0) newValueTT = 2;
+                    newValueTt = i + moveDir.x;
+                    if (newValueTt > 2) newValueTt = 0;
+                    else if (newValueTt < 0) newValueTt = 2;
 
-                    _tiles[newValueTT, j].Vrijednost = _prevTileVrijednost[i, j];
+                    _tiles[newValueTt, j].Vrijednost = _prevTileVrijednost[i, j];
                     _tileTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
                            .From(_rectPosition[i + dirTransform, j + 1])
                            .SetEase(izy)
                            .OnComplete(() => EndTweenDrag(false));
 
-                    _tokens[newValueTT, j].Vrijednost = _prevTokenVrijednost[i, j];
+                    _tokens[newValueTt, j].Vrijednost = _prevTokenVrijednost[i, j];
                     _tokenTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
                            .From(_rectPosition[i + dirTransform, j + 1])
                            .SetEase(izy);
 
-                    _currCoordinates[newValueTT, j] = _prevCoordinates[i, j];
+                    _currCoordinates[newValueTt, j] = _prevCoordinates[i, j];
                 }
             }
 
@@ -603,22 +670,22 @@ public class GameManager : MonoBehaviour
             {
                 for (int j = 0; j < 3; j++)
                 {
-                    newValueTT = j + moveDir.y;
-                    if (newValueTT > 2) newValueTT = 0;
-                    else if (newValueTT < 0) newValueTT = 2;
+                    newValueTt = j + moveDir.y;
+                    if (newValueTt > 2) newValueTt = 0;
+                    else if (newValueTt < 0) newValueTt = 2;
 
-                    _tiles[i, newValueTT].Vrijednost = _prevTileVrijednost[i, j];
+                    _tiles[i, newValueTt].Vrijednost = _prevTileVrijednost[i, j];
                     _tileTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
                            .From(_rectPosition[i + 1, j + dirTransform])
                            .SetEase(izy)
                            .OnComplete(() => EndTweenDrag(false));
 
-                    _tokens[i, newValueTT].Vrijednost = _prevTokenVrijednost[i, j];
+                    _tokens[i, newValueTt].Vrijednost = _prevTokenVrijednost[i, j];
                     _tokenTransform[i, j].DOMove(_rectPosition[i + 1, j + 1], CONST_TWEENDURATION)
                            .From(_rectPosition[i + 1, j + dirTransform])
                            .SetEase(izy);
 
-                    _currCoordinates[i, newValueTT] = _prevCoordinates[i, j];
+                    _currCoordinates[i, newValueTt] = _prevCoordinates[i, j];
                 }
             }
 
@@ -670,12 +737,12 @@ public class GameManager : MonoBehaviour
                 _tiles[i, j].allowedDirection = AllowedDirection.All;
             }
         }
-        _tiles[PositionYY().x, PositionYY().y].allowedDirection = AllowedDirection.MiddlePoint;
+        _tiles[PositionYy().x, PositionYy().y].allowedDirection = AllowedDirection.MiddlePoint;
 
         for (int i = 0; i < 3; i++)
         {
-            if (_tiles[i, PositionYY().y].Vrijednost != 0) _tiles[i, PositionYY().y].allowedDirection = AllowedDirection.Vertical;
-            if (_tiles[PositionYY().x, i].Vrijednost != 0) _tiles[PositionYY().x, i].allowedDirection = AllowedDirection.Horizontal;
+            if (_tiles[i, PositionYy().y].Vrijednost != 0) _tiles[i, PositionYy().y].allowedDirection = AllowedDirection.Vertical;
+            if (_tiles[PositionYy().x, i].Vrijednost != 0) _tiles[PositionYy().x, i].allowedDirection = AllowedDirection.Horizontal;
         }
     }
     void RecordPreviousVrijednost()
@@ -769,5 +836,5 @@ public class GameManager : MonoBehaviour
         CoordinatesDisplay();
 
     }
-
+    #endregion
 }

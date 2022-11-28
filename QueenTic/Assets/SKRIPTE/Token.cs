@@ -8,27 +8,17 @@ using UnityEngine.UI;
 public class Token : MonoBehaviour
 {
     GameManager gm;
-    [SerializeField] Image[] images;
+    [SerializeField] Image image;
     public int Vrijednost
     {
         get => _vrijednost;
         set
         {
             _vrijednost = value;
-            GetImage(_vrijednost);
+            image.sprite = gm.postavke.tokenSprites[_vrijednost];
         }
     }
     int _vrijednost;
-
-    //public int Ordinal
-    //{
-    //    get => _ordinal;
-    //    set
-    //    {
-    //        _ordinal = value;
-    //    }
-    //}
-    //int _ordinal;
 
     public Vector2Int Pozicija
     {
@@ -46,14 +36,18 @@ public class Token : MonoBehaviour
     {
         gm = GameManager.gm;
     }
-
-    void GetImage(int vr)
+    void OnEnable()
     {
-        for (int i = 0; i < images.Length; i++)
-        {
-            images[i].enabled = false;
-        }
-        images[vr].enabled = true; 
+        HelperScript.SkinUpdated += Skins;
     }
+    void OnDisable()
+    {
+        HelperScript.SkinUpdated -= Skins;
+    }
+    void Skins()
+    {
+        Vrijednost = Vrijednost;
+    }
+
 
 }

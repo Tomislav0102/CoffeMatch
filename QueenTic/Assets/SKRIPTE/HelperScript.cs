@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace FirstCollection
@@ -7,6 +8,9 @@ namespace FirstCollection
     public class HelperScript 
     {
         public static System.Action<int> LevelFinished;
+        public static System.Action SkinUpdated;
+
+
         public Vector3 MousePoz(Camera cam, LayerMask lay)
         {
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
@@ -26,6 +30,31 @@ namespace FirstCollection
                 tip[i] = par.GetChild(i).GetComponent<T>();
             }
             return tip;
+        }
+        public static List<int> RandomList(int size)
+        {
+            List<int> brojevi = Enumerable.Range(0, size).ToList();
+            var rnd = new System.Random();
+            var randNums = brojevi.OrderBy(n => rnd.Next());
+            List<int> list = new List<int>();
+            foreach (var item in randNums)
+            {
+                list.Add(item);
+            }
+
+            return list;
+        }
+        public static List<T> RandomListByType<T>(List<T> pocetna)
+        {
+            var rnd = new System.Random();
+            var randNums = pocetna.OrderBy(n => rnd.Next());
+            List<T> list = new List<T>();
+            foreach (var item in randNums)
+            {
+                list.Add(item);
+            }
+
+            return list;
         }
 
 
