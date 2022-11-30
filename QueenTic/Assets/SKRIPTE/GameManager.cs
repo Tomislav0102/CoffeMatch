@@ -6,22 +6,22 @@ using FirstCollection;
 using TMPro;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
-using System;
-using System.Drawing;
 using System.Linq;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager gm;
-    public So_Postavke postavke;
-    public LevelManager levelManager;
+    public SoSetting setting;
     [SerializeField] Transform kanvas;
     [SerializeField] Transform parTile, parToken, parPositions, parTileReplace, parTokenReplace, parCoord, parHintElements, parVrijednosti;
     [SerializeField] GameObject levelDoneGO;
     [SerializeField] Button[] btnLevelDone;
-    [SerializeField] Button btnHint;
-    [SerializeField] Toggle toggleHint;
+    [SerializeField] Button btnSkin, btnHint;
+
     bool _levelDone;
+    int _skinCounter;
+    const int CONST_SKINMAX = 2;
+    int _roundCounter;
 
     Tile[,] _tiles = new Tile[3, 3];
     Transform[,] _tileTransform = new Transform[3, 3];
@@ -40,7 +40,6 @@ public class GameManager : MonoBehaviour
     bool _tweenOneHitCheck = true; // tween are called 6+ times and they all OnComplete(EndTween). That method should be called once, not 6 times.
 
     #region//HINT VARIABLES
-    bool _displayHints;
     Transform[] _hintElements;
     Vector2Int[,] _currCoordinates = new Vector2Int[3, 3];
     Vector2Int[,] _prevCoordinates = new Vector2Int[3, 3];
@@ -119,9 +118,6 @@ public class GameManager : MonoBehaviour
     }
     private void Start()
     {
-        toggleHint.isOn = postavke.showHints;
-        _displayHints = postavke.showHints;
-        //  SceneManager.LoadScene(postavke.level + 1, LoadSceneMode.Additive);
         NewGameBoard();
     }
     #region//EVENTS, BUTTONS
@@ -130,27 +126,24 @@ public class GameManager : MonoBehaviour
         HelperScript.LevelFinished += Ev_LevelDone;
         btnLevelDone[0].onClick.AddListener(Btn_NextLevel);
         btnLevelDone[1].onClick.AddListener(Btn_MainMenu);
-        btnLevelDone[2].onClick.AddListener(Btn_MainMenu);
-        btnHint.onClick.AddListener(Btn_Hint);
-        toggleHint.onValueChanged.AddListener(delegate
+        btnSkin.onClick.AddListener(delegate
         {
-            Togg_Hint();
+            SkinChooser(true);
         });
+        btnHint.onClick.AddListener(Btn_Hint);
     }
     private void OnDisable()
     {
         HelperScript.LevelFinished -= Ev_LevelDone;
         btnLevelDone[0].onClick.RemoveListener(Btn_NextLevel);
         btnLevelDone[1].onClick.RemoveListener(Btn_MainMenu);
-        btnLevelDone[2].onClick.RemoveListener(Btn_MainMenu);
+        btnSkin.onClick.RemoveAllListeners();
         btnHint.onClick.RemoveListener(Btn_Hint);
-        toggleHint.onValueChanged.RemoveAllListeners();
     }
     void Ev_LevelDone(int lv)
     {
         ResetAllHints();
         _tweenFinishedCounter = 100;
-        postavke.level++;
         levelDoneGO.SetActive(true);
         btnLevelDone[0].gameObject.SetActive(true);
         btnLevelDone[1].gameObject.SetActive(true);
@@ -165,14 +158,7 @@ public class GameManager : MonoBehaviour
     }
     void Btn_Hint()
     {
-        postavke.showHints = !postavke.showHints;
-        _displayHints = postavke.showHints;
-        MainHint(false);
-    }
-    void Togg_Hint()
-    {
-        postavke.showHints = toggleHint.isOn;
-        _displayHints = postavke.showHints;
+        setting.showHints = !setting.showHints;
         MainHint(false);
     }
 
@@ -188,7 +174,7 @@ public class GameManager : MonoBehaviour
 
     void NewGameBoard()
     {
-        SkinChooser(1);
+        SkinChooser(false);
 
         _replaceTiles = HelperScript.GetAllChildernByType<Tile>(parTileReplace);
         _replaceTokens = HelperScript.GetAllChildernByType<Token>(parTokenReplace);
@@ -197,7 +183,7 @@ public class GameManager : MonoBehaviour
 
         IniDic();
 
-        int newLevel = RandomLevel(postavke.level);
+        int newLevel = RandomLevel(setting.level);
         _tokens[1, 0].Vrijednost = _tokens[1, 2].Vrijednost = _allCombinations[newLevel][0];
         _tokens[2, 0].Vrijednost = _tokens[0, 2].Vrijednost = _allCombinations[newLevel][1];
         _tokens[0, 0].Vrijednost = _tokens[2, 2].Vrijednost = _allCombinations[newLevel][2];
@@ -205,14 +191,18 @@ public class GameManager : MonoBehaviour
         InitializationHint();
         DefineAllowedDirection();
     }
-    void SkinChooser(int skin)
+    void SkinChooser(bool incrementSkin)
     {
-        postavke.skinOrdinal = skin;
-        postavke.tileSprites.Clear();
-        postavke.tokenSprites.Clear();
+        if (incrementSkin)
+        {
+            _skinCounter = (1 + _skinCounter) % CONST_SKINMAX;
+            setting.skinOrdinal = _skinCounter;
+        }
+        setting.tileSprites.Clear();
+        setting.tokenSprites.Clear();
 
-        string dec = skin < 10 ? "0" : "";
-        string folderName = "Skin" + dec + skin.ToString();
+        string dec = setting.skinOrdinal < 10 ? "0" : "";
+        string folderName = "Skin" + dec + setting.skinOrdinal.ToString();
         Sprite[] allSprites = Resources.LoadAll<Sprite>(folderName);
         if (allSprites == null || allSprites.Length <= 0)
         {
@@ -221,8 +211,8 @@ public class GameManager : MonoBehaviour
         }
         for (int i = 0; i < allSprites.Length; i++)
         {
-            if (i % 2 == 0) postavke.tileSprites.Add(allSprites[i]);
-            else postavke.tokenSprites.Add(allSprites[i]);
+            if (i % 2 == 0) setting.tileSprites.Add(allSprites[i]);
+            else setting.tokenSprites.Add(allSprites[i]);
         }
 
         HelperScript.SkinUpdated?.Invoke();
@@ -230,11 +220,11 @@ public class GameManager : MonoBehaviour
     }
     int RandomLevel(int prevLevel)
     {
-        List<int> brojevi = Enumerable.Range(0, 24).ToList();
-        brojevi.Remove(prevLevel - 1);
+        List<int> brojevi = Enumerable.Range(0, 23).ToList();
+        brojevi.Remove(prevLevel);
         var rnd = new System.Random();
         List<int> list = brojevi.OrderBy(n => rnd.Next()).ToList();
-        postavke.level = list[0];
+        setting.level = list[0];
         return list[0];
     }
     void InitializationMain(MainType mainType)
@@ -254,6 +244,7 @@ public class GameManager : MonoBehaviour
                 {
                     _tokens[i, j] = parToken.GetChild(counter).GetComponent<Token>();
                     _tokens[i, j].Pozicija = new Vector2Int(i, j);
+                  //  print(_tokens[i, j].name);
                     _tokenTransform[i, j] = _tokens[i, j].transform;
                 }
                 counter++;
@@ -275,10 +266,8 @@ public class GameManager : MonoBehaviour
     #endregion
 
     #region //HINT
-
     void InitializationHint()
     {
-        _displayHints = postavke.showHints;
         _hintElements = HelperScript.GetAllChildernByType<Transform>(parHintElements);
         _displayCurrCoordinates = HelperScript.GetAllChildernByType<TextMeshProUGUI>(parCoord);
         _displayVrijednosti = HelperScript.GetAllChildernByType<TextMeshProUGUI>(parVrijednosti);
@@ -359,7 +348,7 @@ public class GameManager : MonoBehaviour
     void MainHint(bool updateHint)
     {
         ResetAllHints();
-        if (!_displayHints) return;
+        if (!setting.showHints) return;
 
         int counter = 0;
         int[] cl = CurrentLayout();
@@ -486,7 +475,7 @@ public class GameManager : MonoBehaviour
         _tweenFinishedCounter++;
         _tweenOneHitCheck = false;
         bool incrementHint = _moveTokenEvenCounter % 2 == 0;
-
+        if (incrementHint) _roundCounter++;
         RecordPreviousVrijednost();
 
         _replaceTokens[_moveTokenEvenCounter].gameObject.SetActive(true);
@@ -763,6 +752,7 @@ public class GameManager : MonoBehaviour
         if (_tweenFinishedCounter > 0) return;
         _tweenFinishedCounter = 100;
         _tweenOneHitCheck = false;
+        _roundCounter++;
 
         RecordPreviousVrijednost();
         ResetAllHints();
@@ -811,7 +801,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if (!_levelDone) HelperScript.LevelFinished?.Invoke(postavke.level);
+        if (!_levelDone) HelperScript.LevelFinished?.Invoke(setting.level);
         _levelDone = true;
     }
 

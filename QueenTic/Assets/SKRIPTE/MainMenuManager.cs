@@ -4,17 +4,31 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using Coffee.UIEffects;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [SerializeField] So_Postavke postavke;
+    [SerializeField] SoSetting setting;
+    [SerializeField] UITransitionEffect[] effects;
     [SerializeField] Button btnPlay, btnQuit;
     [SerializeField] TMP_Dropdown ddLevel;
     
     private void Start()
     {
-        postavke.level = 1;
-        postavke.score = 0;
+        setting.level = 1;
+        setting.score = 0;
+        StartCoroutine(IntroSequence());
+    }
+
+    IEnumerator IntroSequence()
+    {
+        for (int i = 0; i < effects.Length; i++)
+        {
+            effects[i].gameObject.SetActive(true);
+            effects[i].Show();
+            yield return new WaitForSeconds(2);
+           // if(i < effects.Length - 1) effects[i].gameObject.SetActive(false);
+        }
     }
 
     private void OnEnable()
@@ -35,6 +49,7 @@ public class MainMenuManager : MonoBehaviour
     void Btn_Play()
     {
         SceneManager.LoadScene(1);
+        StopAllCoroutines();
     }
     void Btn_Quit()
     {
@@ -42,6 +57,6 @@ public class MainMenuManager : MonoBehaviour
     }
     void ChangeDropDown()
     {
-        postavke.level = ddLevel.value + 1;
+        setting.level = ddLevel.value + 1;
     }
 }

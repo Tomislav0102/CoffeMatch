@@ -11,7 +11,7 @@ namespace FirstCollection
         public static System.Action SkinUpdated;
 
 
-        public Vector3 MousePoz(Camera cam, LayerMask lay)
+        public static Vector3 MousePoz(Camera cam, LayerMask lay)
         {
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
@@ -82,3 +82,4 @@ namespace FirstCollection
     }
 
 }
+

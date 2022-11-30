@@ -9,18 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: Postavke
-  m_EditorClassIdentifier: Assembly-CSharp::So_Postavke
-  level: 2
+  m_Script: {fileID: 11500000, guid: 1692ff0eee7c6dc4fb1fd9507e4a1a38, type: 3}
+  m_Name: Setting
+  m_EditorClassIdentifier: 
+  level: 5
   score: 0
-  showHints: 1
-  boje:
-  - {r: 0, g: 0, b: 0, a: 0}
-  - {r: 0, g: 0, b: 0, a: 0}
-  - {r: 0, g: 0, b: 0, a: 0}
-  - {r: 0, g: 0, b: 0, a: 0}
-  - {r: 0, g: 0, b: 0, a: 0}
+  showHints: 0
   skinOrdinal: 1
   tileSprites:
   - {fileID: 21300000, guid: 84a0206a45aab0c468ad1a70d36203cc, type: 3}

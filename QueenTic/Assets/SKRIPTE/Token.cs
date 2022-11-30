@@ -15,7 +15,7 @@ public class Token : MonoBehaviour
         set
         {
             _vrijednost = value;
-            image.sprite = gm.postavke.tokenSprites[_vrijednost];
+            image.sprite = gm.setting.tokenSprites[_vrijednost];
         }
     }
     int _vrijednost;

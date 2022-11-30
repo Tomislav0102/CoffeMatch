@@ -6,7 +6,7 @@ using FirstCollection;
 public class LevelManager : MonoBehaviour
 {
     GameManager gm;
-    [SerializeField] So_Postavke postavke;
+   // [SerializeField] So_setting setting;
     [SerializeField] HintDirection[] hintOrder;
     int[,] _tilesVrijednosti = new int[3, 3];
     int[,] _tokensVrijednosti = new int[3, 3];
@@ -15,7 +15,7 @@ public class LevelManager : MonoBehaviour
     private void Awake()
     {
         gm = GameManager.gm;
-        gm.levelManager = this;
+      //  gm.levelManager = this;
     }
     private void Start()
     {

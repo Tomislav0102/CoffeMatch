@@ -20,7 +20,7 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
         set
         {
             _vrijednost = value;
-            image.sprite = gm.postavke.tileSprites[_vrijednost];
+            image.sprite = gm.setting.tileSprites[_vrijednost];
         }
     }
     int _vrijednost;
@@ -46,7 +46,11 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     private void Awake()
     {
         gm = GameManager.gm;
+    }
+    void Start()
+    {
         Vrijednost = pocetnaVrijednost;
+
     }
 
     void OnEnable()
@@ -61,19 +65,19 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     {
         Vrijednost = Vrijednost;
     }
-    void Update()
-    {
-        if (!canBeDraged) return;
-        if (_firstClick)
-        {
-            _timerFistClick += Time.deltaTime;
-            if(_timerFistClick > 0.3f)
-            {
-                _firstClick = false;
-                _timerFistClick = 0f;
-            }
-        }
-    }
+    //void Update()
+    //{
+    //    if (!canBeDraged) return;
+    //    if (_firstClick)
+    //    {
+    //        _timerFistClick += Time.deltaTime;
+    //        if(_timerFistClick > 0.3f)
+    //        {
+    //            _firstClick = false;
+    //            _timerFistClick = 0f;
+    //        }
+    //    }
+    //}
 
     public void OnBeginDrag(PointerEventData eventData)
     {
@@ -129,14 +133,13 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     public void OnPointerClick(PointerEventData eventData)
     {
         gm.MiddlePointActivation(new Vector2Int(1,1));
-        return;
-        if (allowedDirection != AllowedDirection.MiddlePoint) return;
+        //if (allowedDirection != AllowedDirection.MiddlePoint) return;
 
-        if (_firstClick)
-        {
-            _timerFistClick = 0f;
-            gm.MiddlePointActivation(Pozicija);
-        }
-        _firstClick = true;
+        //if (_firstClick)
+        //{
+        //    _timerFistClick = 0f;
+        //    gm.MiddlePointActivation(Pozicija);
+        //}
+        //_firstClick = true;
     }
 }
