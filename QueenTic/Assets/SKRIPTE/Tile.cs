@@ -32,10 +32,11 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
         {
             _pozicija = value;
             gameObject.name = $"Tile {_pozicija.x} {_pozicija.y}";
-
+            _oppositePoz = new Vector2Int((_pozicija.x + 2) % 2, (_pozicija.y + 2) % 2); //pogresno, ispraviti
         }
     }
     Vector2Int _pozicija;
+    Vector2Int _oppositePoz;
 
     Vector2 _dragDelta;
     Vector2Int _moveDir;
@@ -121,7 +122,8 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
         gm.MoveTokenByPosition(_moveDir, Pozicija);
 
         Vector2Int oppositePosition = gm.OppositePos(_moveDir, Pozicija);
-        gm.MoveTokenByPosition(-_moveDir, oppositePosition);
+        
+        gm.MoveTokenByPosition(-_moveDir, oppositePosition); 
 
     }
 
@@ -132,8 +134,8 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (allowedDirection != AllowedDirection.MiddlePoint) return;
         gm.MiddlePointActivation(new Vector2Int(1,1));
-        //if (allowedDirection != AllowedDirection.MiddlePoint) return;
 
         //if (_firstClick)
         //{

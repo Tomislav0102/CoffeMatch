@@ -5,11 +5,13 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 using Coffee.UIEffects;
+using FirstCollection;
 
 public class MainMenuManager : MonoBehaviour
 {
     [SerializeField] SoSetting setting;
-    [SerializeField] UITransitionEffect[] effects;
+    [SerializeField] Transform parEffects;
+    UITransitionEffect[] effects;
     [SerializeField] Button btnPlay, btnQuit;
     [SerializeField] TMP_Dropdown ddLevel;
     
@@ -22,6 +24,7 @@ public class MainMenuManager : MonoBehaviour
 
     IEnumerator IntroSequence()
     {
+        effects = HelperScript.GetAllChildernByType<UITransitionEffect>(parEffects);
         for (int i = 0; i < effects.Length; i++)
         {
             effects[i].gameObject.SetActive(true);

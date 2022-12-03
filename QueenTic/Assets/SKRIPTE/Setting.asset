@@ -12,9 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1692ff0eee7c6dc4fb1fd9507e4a1a38, type: 3}
   m_Name: Setting
   m_EditorClassIdentifier: 
-  level: 5
+  level: 1
   score: 0
-  showHints: 0
+  showHints: 1
   skinOrdinal: 1
   tileSprites:
   - {fileID: 21300000, guid: 84a0206a45aab0c468ad1a70d36203cc, type: 3}
