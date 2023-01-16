@@ -12,6 +12,11 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager gm;
     public SoSetting setting;
+    [SerializeField] Color[] skinColors;
+    #region//TEMPORARY, only to demonstrate skin color (no functionality)
+    [SerializeField] Image[] imageToColorSkin;
+    [SerializeField] TextMeshProUGUI textToColorSkin;
+    #endregion
     [SerializeField] Transform kanvas;
     [SerializeField] Transform parTile, parToken, parPositions, parTileReplace, parTokenReplace, parCoord, parHintElements, parVrijednosti;
     [SerializeField] GameObject levelDoneGO;
@@ -20,7 +25,7 @@ public class GameManager : MonoBehaviour
 
     bool _levelDone;
     int _skinCounter;
-    const int CONST_SKINMAX = 2;
+    const int CONST_SKINMAX = 4;
     int _roundCounter;
 
     Tile[,] _tiles = new Tile[3, 3];
@@ -208,6 +213,12 @@ public class GameManager : MonoBehaviour
         }
 
         HelperScript.SkinUpdated?.Invoke();
+
+        for (int i = 0; i < imageToColorSkin.Length; i++)
+        {
+            imageToColorSkin[i].color = skinColors[_skinCounter];
+        }
+        textToColorSkin.color = skinColors[_skinCounter];
 
     }
     int RandomLevel(int prevLevel)
