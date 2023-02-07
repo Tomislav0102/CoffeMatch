@@ -10,5 +10,5 @@ public class SoSetting : ScriptableObject
     public bool showHints;
     [Header("-=SKINS=-")]
     public int skinOrdinal;
-    public List<Sprite> tileSprites, tokenSprites;
+    [HideInInspector] public List<Sprite> tileSprites, tokenSprites;
 }

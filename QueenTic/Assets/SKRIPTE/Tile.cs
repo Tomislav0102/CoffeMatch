@@ -40,8 +40,6 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
 
     Vector2 _dragDelta;
     Vector2Int _moveDir;
-    bool _firstClick;
-    float _timerFistClick;
 
 
     private void Awake()
@@ -66,42 +64,14 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     {
         Vrijednost = Vrijednost;
     }
-    //void Update()
-    //{
-    //    if (!canBeDraged) return;
-    //    if (_firstClick)
-    //    {
-    //        _timerFistClick += Time.deltaTime;
-    //        if(_timerFistClick > 0.3f)
-    //        {
-    //            _firstClick = false;
-    //            _timerFistClick = 0f;
-    //        }
-    //    }
-    //}
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!canBeDraged) return;
 
         _dragDelta = eventData.delta;
-       // print($"Float -- {_dragDelta}");
         if (allowedDirection == AllowedDirection.MiddlePoint)
         {
-            //if (Mathf.Abs(_dragDelta.x) > Mathf.Abs(_dragDelta.y))
-            //{
-            //    _moveDir = new Vector2Int(_dragDelta.x > 0 ? 1 : -1, 0);
-            //}
-            //else if (Mathf.Abs(_dragDelta.x) < Mathf.Abs(_dragDelta.y))
-            //{
-            //    _moveDir = new Vector2Int(0, _dragDelta.y > 0 ? 1 : -1);
-            //}
-            //else return;
-
-            ////  print($"INT -- {_moveDir}");
-            //gm.MoveWholeBoard(_moveDir);
-
-
             return;
         }
 
@@ -136,12 +106,5 @@ public class Tile : MonoBehaviour, IBeginDragHandler, IDragHandler, IPointerClic
     {
         if (allowedDirection != AllowedDirection.MiddlePoint) return;
         gm.MiddlePointActivation(new Vector2Int(1,1));
-
-        //if (_firstClick)
-        //{
-        //    _timerFistClick = 0f;
-        //    gm.MiddlePointActivation(Pozicija);
-        //}
-        //_firstClick = true;
     }
 }

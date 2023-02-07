@@ -3,17 +3,19 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using TMPro;
 using Coffee.UIEffects;
 using FirstCollection;
 
+/// <summary>
+/// Coffee.UIEffects is used only for intro transitions. 
+/// To remove it delete Corouitne IntroSequence() and delete gameobject TRANSITIONS in hierarchy.
+/// </summary>
 public class MainMenuManager : MonoBehaviour
 {
     [SerializeField] SoSetting setting;
     [SerializeField] Transform parEffects;
     UITransitionEffect[] effects;
-    [SerializeField] Button btnPlay, btnQuit;
-    [SerializeField] TMP_Dropdown ddLevel;
+    [SerializeField] Button btnPlay;
     
     private void Start()
     {
@@ -37,29 +39,14 @@ public class MainMenuManager : MonoBehaviour
     private void OnEnable()
     {
         btnPlay.onClick.AddListener(Btn_Play);
-        btnQuit.onClick.AddListener(Btn_Quit);
-        ddLevel.onValueChanged.AddListener(delegate
-        {
-            ChangeDropDown();
-        });
     }
     private void OnDisable()
     {
         btnPlay.onClick.RemoveListener(Btn_Play);
-        btnQuit.onClick.RemoveListener(Btn_Quit);
-        ddLevel.onValueChanged.RemoveAllListeners();
     }
     void Btn_Play()
     {
         SceneManager.LoadScene(1);
         StopAllCoroutines();
-    }
-    void Btn_Quit()
-    {
-        Application.Quit();
-    }
-    void ChangeDropDown()
-    {
-        setting.level = ddLevel.value + 1;
     }
 }
